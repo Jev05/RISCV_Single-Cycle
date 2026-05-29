@@ -1,0 +1,164 @@
+// top.v
+module top(
+    input clk,
+    input reset,
+    output [31:0] pc_out,        // Útil para ver el avance en el testbench
+    output [31:0] alu_result_out // Útil para monitorear operaciones
+);
+
+    // ==========================================
+    // SEÑALES INTERNAS (CABLES)
+    // ==========================================
+    
+    // Etapa: Fetch (IF)
+    wire [31:0] pc;
+    wire [31:0] pc_next;
+    wire [31:0] pc_plus4;
+    wire [31:0] pc_branch;
+    wire [31:0] instruction;
+    wire pc_sel;
+
+    // Etapa: Decode (ID)
+    wire [6:0] opcode    = instruction[6:0];
+    wire [4:0] rd        = instruction[11:7];
+    wire [2:0] funct3    = instruction[14:12];
+    wire [4:0] rs1       = instruction[19:15];
+    wire [4:0] rs2       = instruction[24:20];
+    wire funct7_5        = instruction[30];
+
+    // Señales de Control
+    wire branch, mem_read, mem_to_reg, mem_write, alu_src, reg_write;
+    wire [1:0] alu_op;
+    wire [3:0] alu_ctrl;
+
+    // Banco de Registros e Inmediato
+    wire [31:0] read_data1;
+    wire [31:0] read_data2;
+    wire [31:0] imm_out;
+
+    // Etapa: Execute (EX)
+    wire [31:0] alu_in2;
+    wire [31:0] alu_result;
+    wire is_equal;
+
+    // Etapa: Memory & Writeback (MEM/WB)
+    wire [31:0] read_data;
+    wire [31:0] write_back_data;
+
+    // Asignaciones a salidas del Top para depuración
+    assign pc_out = pc;
+    assign alu_result_out = alu_result;
+
+    // ==========================================
+    // INSTANCIACIÓN DE MÓDULOS
+    // ==========================================
+
+    // --- ETAPA: FETCH ---
+    program_counter PC_REG (
+        .clk(clk),
+        .reset(reset),
+        .pc_next(pc_next),
+        .pc(pc)
+    );
+
+    adder PC_ADDER_4 (
+        .a(pc),
+        .b(32'd4),
+        .result(pc_plus4)
+    );
+
+    instruction_memory IMEM (
+        .addr(pc),
+        .instruction(instruction)
+    );
+
+    mux PC_INPUT_MUX (
+        .d0(pc_plus4),
+        .d1(pc_branch),
+        .sel(pc_sel),
+        .y(pc_next)
+    );
+
+    // --- ETAPA: DECODE & CONTROL ---
+    control_unit CONTROL (
+        .opcode(opcode),
+        .branch(branch),
+        .mem_read(mem_read),
+        .mem_to_reg(mem_to_reg),
+        .alu_op(alu_op),
+        .mem_write(mem_write),
+        .alu_src(alu_src),
+        .reg_write(reg_write)
+    );
+
+    register_file REGS (
+        .clk(clk),
+        .reg_write(reg_write),
+        .rs1(rs1),
+        .rs2(rs2),
+        .rd(rd),
+        .write_data(write_back_data),
+        .read_data1(read_data1),
+        .read_data2(read_data2)
+    );
+
+    immediate_generator IMM_GEN (
+        .inst(instruction),
+        .imm_out(imm_out)
+    );
+
+    // --- ETAPA: EXECUTE ---
+    alu_control ALU_CTRL (
+        .alu_op(alu_op),
+        .funct3(funct3),
+        .funct7_5(funct7_5),
+        .alu_ctrl(alu_ctrl)
+    );
+
+    mux ALU_SRC_MUX (
+        .d0(read_data2),
+        .d1(imm_out),
+        .sel(alu_src),
+        .y(alu_in2)
+    );
+
+    alu ALU_CORE (
+        .a(read_data1),
+        .b(alu_in2),
+        .alu_control(alu_ctrl),
+        .result(alu_result)
+    );
+
+    branch_comparator BRANCH_COMP (
+        .reg_a(read_data1),
+        .reg_b(read_data2),
+        .eq(is_equal)
+    );
+
+    // Lógica para decidir si se salta (Lógica de control distribuidor)
+    assign pc_sel = branch & is_equal;
+
+    adder BRANCH_TARGET_ADDER (
+        .a(pc),
+        .b(imm_out),
+        .result(pc_branch)
+    );
+
+    // --- ETAPA: MEMORY & WRITEBACK ---
+    data_memory DMEM (
+        .clk(clk),
+        .mem_write(mem_write),
+        .mem_read(mem_read),
+        .addr(alu_result),
+        .write_data(read_data2),
+        .read_data(read_data)
+    );
+
+    mux WB_MUX (
+        .d0(alu_result),
+        .d1(read_data),
+        .sel(mem_to_reg),
+        .y(write_back_data)
+    );
+
+endmodule

@@ -1,0 +1,50 @@
+// program_counter.v
+module program_counter(
+    input clk,
+    input reset,
+    input [31:0] pc_next,
+    output reg [31:0] pc
+);
+    always @(posedge clk or posedge reset) begin
+        if (reset)
+            pc <= 32'b0;
+        else
+            pc <= pc_next;
+    end
+endmodule
+
+// instruction_memory.v
+module instruction_memory(
+    input [31:0] addr,
+    output [31:0] instruction
+);
+    // ROM de 64 palabras de 32 bits
+    reg [31:0] rom [0:63]; 
+
+    initial begin
+        // Aquí cargamos el programa ensamblado
+        $readmemh("test_program.mem", rom);
+    end
+
+    // Se divide entre 4 (desplazamiento de 2 bits) porque la memoria es direccionable por byte
+    assign instruction = rom[addr[7:2]]; 
+endmodule
+
+// data_memory.v
+module data_memory(
+    input clk,
+    input mem_write,
+    input mem_read,
+    input [31:0] addr,
+    input [31:0] write_data,
+    output [31:0] read_data
+);
+    reg [31:0] ram [0:63]; // Memoria RAM pequeña
+
+    always @(posedge clk) begin
+        if (mem_write)
+            ram[addr[7:2]] <= write_data;
+    end
+
+    assign read_data = (mem_read) ? ram[addr[7:2]] : 32'b0;
+endmodule

@@ -1,0 +1,63 @@
+// control_unit.v
+module control_unit(
+    input [6:0] opcode,
+    output reg branch,
+    output reg mem_read,
+    output reg mem_to_reg,
+    output reg [1:0] alu_op,
+    output reg mem_write,
+    output reg alu_src,
+    output reg reg_write
+);
+    always @(*) begin
+        // Valores por defecto para evitar latches indeseados
+        branch = 0; mem_read = 0; mem_to_reg = 0;
+        alu_op = 2'b00; mem_write = 0; alu_src = 0; reg_write = 0;
+
+        case(opcode)
+            7'b0110011: begin // Tipo R (add, sub...)
+                reg_write = 1; alu_op = 2'b10;
+            end
+            7'b0010011: begin // Tipo I (addi)
+                reg_write = 1; alu_src = 1; alu_op = 2'b00;
+            end
+            7'b0000011: begin // lw
+                mem_read = 1; mem_to_reg = 1; alu_src = 1; reg_write = 1; alu_op = 2'b00;
+            end
+            7'b0100011: begin // sw
+                mem_write = 1; alu_src = 1; alu_op = 2'b00;
+            end
+            7'b1100011: begin // beq
+                branch = 1; alu_op = 2'b01;
+            end
+        endcase
+    end
+endmodule
+
+// alu_control.v
+module alu_control(
+    input [1:0] alu_op,
+    input [2:0] funct3,
+    input funct7_5, // bit 30 de la instruccion
+    output reg [3:0] alu_ctrl
+);
+    always @(*) begin
+        case(alu_op)
+            2'b00: alu_ctrl = 4'b0010; // lw, sw, addi usan suma
+            2'b01: alu_ctrl = 4'b0110; // beq usa resta
+            2'b10: begin // Tipo R
+                if (funct3 == 3'b000 && funct7_5 == 1'b1)
+                    alu_ctrl = 4'b0110; // SUB
+                else if (funct3 == 3'b000)
+                    alu_ctrl = 4'b0010; // ADD
+                else if (funct3 == 3'b111)
+                    alu_ctrl = 4'b0000; // AND
+                else if (funct3 == 3'b110)
+                    alu_ctrl = 4'b0001; // OR
+                else
+                    alu_ctrl = 4'b0000;
+            end
+            default: alu_ctrl = 4'b0000;
+        endcase
+    end
+endmodule

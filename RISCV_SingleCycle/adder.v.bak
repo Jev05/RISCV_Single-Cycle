@@ -1,0 +1,27 @@
+// adder.v
+module adder(
+    input [31:0] a,
+    input [31:0] b,
+    output [31:0] result
+);
+    assign result = a + b;
+endmodule
+
+// mux.v (Multiplexor 2 a 1 genérico)
+module mux(
+    input [31:0] d0,
+    input [31:0] d1,
+    input sel,
+    output [31:0] y
+);
+    assign y = sel ? d1 : d0;
+endmodule
+
+// branch_comparator.v
+module branch_comparator(
+    input [31:0] reg_a,
+    input [31:0] reg_b,
+    output eq // true si son iguales (para BEQ)
+);
+    assign eq = (reg_a == reg_b);
+endmodule

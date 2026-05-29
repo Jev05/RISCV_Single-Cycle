@@ -1,0 +1,1 @@
+Info (10281): Verilog HDL Declaration information at top.v(32): object "alu_ctrl" differs only in case from object "ALU_CTRL" in the same scope File: C:/Users/pelay/AppData/Local/quartus/RISC_SingleCycle/top.v Line: 32

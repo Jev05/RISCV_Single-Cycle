@@ -1,0 +1,66 @@
+// register_file.v
+module register_file(
+    input clk,
+    input reg_write,
+    input [4:0] rs1,
+    input [4:0] rs2,
+    input [4:0] rd,
+    input [31:0] write_data,
+    output [31:0] read_data1,
+    output [31:0] read_data2
+);
+    reg [31:0] registers [0:31];
+    integer i;
+
+    initial begin
+        for (i = 0; i < 32; i = i + 1) registers[i] = 32'b0;
+    end
+
+    always @(posedge clk) begin
+        // El registro 0 siempre está cableado a 0
+        if (reg_write && rd != 5'b0) begin
+            registers[rd] <= write_data;
+        end
+    end
+
+    assign read_data1 = (rs1 == 5'b0) ? 32'b0 : registers[rs1];
+    assign read_data2 = (rs2 == 5'b0) ? 32'b0 : registers[rs2];
+endmodule
+
+// alu.v
+module alu(
+    input [31:0] a,
+    input [31:0] b,
+    input [3:0] alu_control,
+    output reg [31:0] result
+);
+    always @(*) begin
+        case(alu_control)
+            4'b0000: result = a & b;       // AND
+            4'b0001: result = a | b;       // OR
+            4'b0010: result = a + b;       // ADD
+            4'b0110: result = a - b;       // SUB
+            4'b0111: result = (a < b) ? 32'b1 : 32'b0; // SLT
+            default: result = 32'b0;
+        endcase
+    end
+endmodule
+
+// immediate_generator.v
+module immediate_generator(
+    input [31:0] inst,
+    output reg [31:0] imm_out
+);
+    always @(*) begin
+        case(inst[6:0]) // Evaluamos el opcode
+            7'b0010011, 7'b0000011: // Tipo I (addi, lw)
+                imm_out = {{20{inst[31]}}, inst[31:20]};
+            7'b0100011: // Tipo S (sw)
+                imm_out = {{20{inst[31]}}, inst[31:25], inst[11:7]};
+            7'b1100011: // Tipo B (beq)
+                imm_out = {{20{inst[31]}}, inst[7], inst[30:25], inst[11:8], 1'b0};
+            default: 
+                imm_out = 32'b0;
+        endcase
+    end
+endmodule

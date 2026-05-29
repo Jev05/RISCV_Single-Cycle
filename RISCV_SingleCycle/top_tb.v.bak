@@ -1,0 +1,43 @@
+`timescale 1ns / 1ps
+
+module top_tb;
+
+    reg clk;
+    reg reset;
+    wire [31:0] pc;
+    wire [31:0] alu_result;
+
+    // Instancia del procesador completo
+    top uut (
+        .clk(clk),
+        .reset(reset),
+        .pc_out(pc),
+        .alu_result_out(alu_result)
+    );
+
+    // Generación del reloj (Periodo de 10ns -> 100MHz)
+    always #5 clk = ~clk;
+
+    initial begin
+        // Inicializar señales
+        clk = 0;
+        reset = 1;
+        
+        // Esperar unos ciclos en reset
+        #15;
+        reset = 0;
+        
+        // Dejar correr la simulación para que ejecute el programa (.mem)
+        #200;
+        
+        // Detener simulación
+        $display("Simulación finalizada. Revisa las ondas.");
+        $finish;
+    end
+
+    // Monitor opcional por consola (muy académico)
+    initial begin
+        $monitor("Tiempo=%0d ns | PC=%h | ALUResult=%d", $time, pc, alu_result);
+    end
+
+endmodule
